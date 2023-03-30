@@ -40,16 +40,25 @@ def create_issue(repo, payload, title, body):
     issue.add_to_labels('pending')
 
 
-#create issue when pull request is closed
+# create issue when pull request is closed
 def create_other_issue(repo, payload):
-    issue = repo.get_merge(payload['pull_request']['number'])
-    issue.create_issue_comment('A new pull request has been merge')
+    issue = repo.get_issue(number=payload['issue']['number'])
+    response = f"Thanks for opening this issue, @{issue.user.login}! "
+    issue.create_comment(f"{response}")
 
 
 # a pull request has been merged, remove branch
 def remove_branch(repo, payload):
-    branch = repo.get_branch(payload['pull_request']['number'])
+    branch = repo.get_git_ref(f"heads/{payload['pull_request']['head']['ref']}")
+    print(branch)
     branch.delete()
+
+
+#  set pull request to success
+def set_pull_request_success(repo, payload):
+    pull = repo.get_pull(payload['pull_request']['number'])
+    pull.create_status(state='success', description='Pull request is in progress',
+                       context='continuous-integration/travis-ci/pr')
 
 
 @app.route("/", methods=['POST'])
@@ -69,7 +78,6 @@ def bot():
     )
     repo = git_connection.get_repo(f"{owner}/{repo_name}")
 
-
     # Check if the event is a GitHub issue creation event
     if all(k in payload.keys() for k in ['action', 'issue']) and payload['action'] == 'opened':
         add_label(repo, payload, 'pending')
@@ -79,6 +87,10 @@ def bot():
 
     elif all(k in payload.keys() for k in ['action', 'pull_request']) and payload['action'] == 'closed':
         remove_branch(repo, payload)
+
+    elif all(k in payload.keys() for k in ['action', 'pull_request']) and all(
+            i in payload['pull_request']['title'] for i in ["wip", "work in progress", "do not merge"]):
+        set_pull_request_success(repo, payload)
 
     # check merge is true or false
     elif all(k in payload.keys() for k in ['pull_request']) and payload["pull_request"]['merged'] == 'true':
