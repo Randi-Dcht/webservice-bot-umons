@@ -56,9 +56,13 @@ def remove_branch(repo, payload):
 
 #  set pull request to success
 def set_pull_request_success(repo, payload):
-    pull = repo.get_pull(payload['pull_request']['number'])
+    pull = repo.get_pull(number=payload['number'])
     pull.create_status(state='success', description='Pull request is in progress',
                        context='continuous-integration/travis-ci/pr')
+    pull.get_commits().reversed[0].create_status(
+        state='pending',
+        description='Work in progress',
+        context='WIP')
 
 
 @app.route("/", methods=['POST'])
@@ -90,6 +94,7 @@ def bot():
 
     elif all(k in payload.keys() for k in ['action', 'pull_request']) and all(
             i in payload['pull_request']['title'] for i in ["wip", "work in progress", "do not merge"]):
+        # https://pygithub.readthedocs.io/en/latest/examples/Commit.html#create-commit-status-check
         set_pull_request_success(repo, payload)
 
     # check merge is true or false
