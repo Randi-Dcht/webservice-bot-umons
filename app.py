@@ -57,7 +57,7 @@ def remove_branch(repo, payload):
 #  set pull request to success
 def set_pull_request_success(repo, payload):
     pull = repo.get_pull(number=payload['number'])
-    pull.create_status(state='success', description='Pull request is in progress',
+    pull.create_status(state='pending', description='Pull request is in progress',
                        context='continuous-integration/travis-ci/pr')
     pull.get_commits().reversed[0].create_status(
         state='pending',
